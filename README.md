@@ -1,10 +1,7 @@
 # Linux-Based Stateful Network Firewall with Web-Based Monitoring and Rule Management
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen)](https://mohittt-kumar.github.io/linux-stateful-firewall/)
 [![Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/mohittt-kumar/linux-stateful-firewall)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-> 🌐 **Live Interactive Browser Demo**: Test the dashboard, add/toggle rules, manage web domain blocklists, view simulated live telemetry, and inspect the 403 access control screen directly on GitHub Pages: **[https://mohittt-kumar.github.io/linux-stateful-firewall/](https://mohittt-kumar.github.io/linux-stateful-firewall/)**
 
 A production-grade, educational Linux network security gateway built with **nftables**, **Python (Flask)**, **SQLite**, **vanilla JavaScript**, and a high-performance **C++ Traffic & Log Analyzer**.
 
