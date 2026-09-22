@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# C++ compiled binaries
+*.exe
+*.o
+*.out
+analyzer/analyzer.exe
+analyzer/analyzer
+
+# Local SQLite databases (created dynamically by init_db)
+database/firewall.db
+database/*.db
+
+# Environments & IDEs
+.env
+.venv
+env/
+venv/
+ENV/
+.vscode/
+.idea/
+
+# Operating System files
+.DS_Store
+Thumbs.db

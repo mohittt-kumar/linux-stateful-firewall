@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Connections - Stateful Network Firewall{% endblock %}
+{% block page_title %}Active Connection Tracking{% endblock %}
+{% block page_subtitle %}Live 5-tuple state table managed by the Linux netfilter connection tracking (conntrack) subsystem{% endblock %}
+
+{% block content %}
+<!-- Conceptual Explanation Card -->
+<div class="card info-banner">
+    <div class="info-content">
+        <strong>💡 How Stateful Inspection Works:</strong>
+        Unlike stateless firewalls that require separate rules for outgoing and incoming packets, a <strong>stateful firewall</strong> maintains a dynamically updated state table.
+        When an outbound TCP handshake or UDP query is initiated and permitted, the kernel conntrack module registers the 5-tuple (Src IP, Dst IP, Src Port, Dst Port, Protocol).
+        All corresponding return packets match the <code>ct state established,related</code> rule and are automatically permitted without needing manual reverse rules.
+    </div>
+</div>
+
+<div class="card full-width">
+    <div class="card-header">
+        <div>
+            <h3>Conntrack State Table</h3>
+            <span class="card-hint">/proc/net/nf_conntrack</span>
+        </div>
+        <div class="card-actions">
+            <button class="btn btn-secondary" onclick="location.reload()">
+                🔄 Refresh Connections
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Protocol</th>
+                    <th>Connection State</th>
+                    <th>Source Address</th>
+                    <th>Source Port</th>
+                    <th>Destination Address</th>
+                    <th>Destination Port</th>
+                </tr>
+            </thead>
+            <tbody id="connections-table-body">
+                {% for c in connections %}
+                <tr>
+                    <td><span class="badge badge-proto">{{ c.protocol|upper }}</span></td>
+                    <td>
+                        {% if c.state == 'ESTABLISHED' %}
+                            <span class="badge badge-success">ESTABLISHED</span>
+                        {% elif c.state == 'TIME_WAIT' %}
+                            <span class="badge badge-subtle">TIME_WAIT</span>
+                        {% elif c.state == 'SYN_SENT' %}
+                            <span class="badge badge-warning">SYN_SENT</span>
+                        {% else %}
+                            <span class="badge badge-info">{{ c.state }}</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ c.source_ip }}</code></td>
+                    <td><code>{{ c.source_port or '-' }}</code></td>
+                    <td><code>{{ c.destination_ip }}</code></td>
+                    <td><code>{{ c.destination_port or '-' }}</code></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No active tracked connections currently found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

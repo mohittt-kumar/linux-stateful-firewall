@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Stateful Network Firewall{% endblock %}
+{% block page_title %}Firewall Security & Audit Logs{% endblock %}
+{% block page_subtitle %}Live packet inspection events captured via nftables logging and kernel telemetry{% endblock %}
+
+{% block content %}
+<div class="card full-width">
+    <div class="card-header flex-between">
+        <div class="filter-group">
+            <span class="filter-label">Filter Verdict:</span>
+            <a href="{{ url_for('logs_view') }}" class="btn-filter {% if current_filter == 'all' %}active{% endif %}">
+                All Logs
+            </a>
+            <a href="{{ url_for('logs_view', action='drop') }}" class="btn-filter {% if current_filter == 'drop' %}active danger{% endif %}">
+                ⛔ Blocked Only (DROP)
+            </a>
+            <a href="{{ url_for('logs_view', action='accept') }}" class="btn-filter {% if current_filter == 'accept' %}active success{% endif %}">
+                ✓ Allowed Only (ACCEPT)
+            </a>
+        </div>
+
+        <div class="card-actions">
+            <button class="btn btn-secondary" onclick="location.reload()">
+                🔄 Refresh Logs
+            </button>
+            <button class="btn btn-danger-outline" onclick="clearAuditLogs()">
+                🗑️ Clear Logs
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Timestamp</th>
+                    <th>Source (IP:Port)</th>
+                    <th>Destination (IP:Port)</th>
+                    <th>Protocol</th>
+                    <th>Verdict</th>
+                    <th>Rule / Reason</th>
+                </tr>
+            </thead>
+            <tbody id="logs-table-body">
+                {% for log in logs %}
+                <tr>
+                    <td>#{{ log.id }}</td>
+                    <td class="text-muted">{{ log.timestamp }}</td>
+                    <td><code>{{ log.source_ip }}{% if log.source_port %}:{{ log.source_port }}{% endif %}</code></td>
+                    <td><code>{{ log.destination_ip }}{% if log.destination_port %}:{{ log.destination_port }}{% endif %}</code></td>
+                    <td><span class="badge badge-proto">{{ log.protocol|upper }}</span></td>
+                    <td>
+                        {% if log.action|upper == 'ACCEPT' %}
+                            <span class="badge badge-success">ACCEPT</span>
+                        {% else %}
+                            <span class="badge badge-danger">DROP</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="reason-text">
+                            {{ log.rule_name or log.reason or 'Policy Match' }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No security events found matching current criteria.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Stateful Network Firewall{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
+{% block page_subtitle %}Live packet telemetry, connection state, and network interface metrics{% endblock %}
+
+{% block content %}
+<!-- Metric Cards -->
+<div class="metrics-grid">
+    <div class="card metric-card">
+        <div class="metric-header">
+            <span class="metric-title">Firewall Engine</span>
+            <span class="metric-badge status-online">● Active</span>
+        </div>
+        <div class="metric-value" id="card-status">{{ status.status }}</div>
+        <div class="metric-footer">Policy: <strong>DROP</strong> (Default Deny)</div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="metric-header">
+            <span class="metric-title">Packets Allowed</span>
+            <span class="metric-icon success">✓</span>
+        </div>
+        <div class="metric-value text-success" id="card-allowed">{{ status.allowed_packets }}</div>
+        <div class="metric-footer">Stateful & explicit accept rules</div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="metric-header">
+            <span class="metric-title">Packets Blocked</span>
+            <span class="metric-icon danger">✕</span>
+        </div>
+        <div class="metric-value text-danger" id="card-blocked">{{ status.blocked_packets }}</div>
+        <div class="metric-footer">Explicit drops & policy violations</div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="metric-header">
+            <span class="metric-title">Active Connections</span>
+            <span class="metric-icon info">⚡</span>
+        </div>
+        <div class="metric-value text-info" id="card-conns">{{ active_conns_count }}</div>
+        <div class="metric-footer">Tracked via conntrack table</div>
+    </div>
+</div>
+
+<!-- Monitored Network Topology & Scope Card -->
+<div class="card full-width" style="margin-bottom: 1.5rem; border-left: 4px solid var(--accent-emerald);">
+    <div class="card-header">
+        <div>
+            <h3 style="display: flex; align-items: center; gap: 0.5rem;">
+                🌐 Active Monitored Network Topology & Routing Scope
+            </h3>
+            <span class="card-hint">Discovered dynamically from Linux kernel routing tables</span>
+        </div>
+        <span class="badge badge-success">{{ network_info.ip_forwarding.split(' ')[0] }}</span>
+    </div>
+    
+    <div class="grid-2-col" style="margin-bottom: 1rem;">
+        <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--accent-cyan); font-weight: 700; margin-bottom: 0.35rem;">
+                📡 External WAN Segment (Internet Facing)
+            </div>
+            <div style="font-size: 13px;"><strong>Interface:</strong> <code>{{ network_info.wan_interface }}</code></div>
+            <div style="font-size: 13px; margin-top: 4px;"><strong>Gateway:</strong> <code>{{ network_info.wan_gateway }}</code></div>
+            <div style="font-size: 13px; margin-top: 4px;"><strong>Source NAT:</strong> <span class="badge badge-info">{{ network_info.nat_status }}</span></div>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--accent-emerald); font-weight: 700; margin-bottom: 0.35rem;">
+                🛡️ Internal Protected LAN Segment
+            </div>
+            <div style="font-size: 13px;"><strong>Protected Subnet:</strong> <code>{{ network_info.protected_lan_subnets|join(', ') }}</code></div>
+            <div style="font-size: 13px; margin-top: 4px;"><strong>Inspection Point:</strong> <code>{{ network_info.filtering_hook }}</code></div>
+            <div style="font-size: 13px; margin-top: 4px;"><strong>Kernel Routing:</strong> <span class="badge badge-success">{{ network_info.ip_forwarding }}</span></div>
+        </div>
+    </div>
+    
+    <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+        <strong>How Traffic is Inspected:</strong> {{ network_info.description }}
+    </p>
+</div>
+
+<!-- Threat Analyzer Panel (Trigger C++ Analyzer) -->
+<div class="card analyzer-banner">
+    <div class="analyzer-info">
+        <h3>🧠 C++ Traffic & Threat Pattern Analyzer</h3>
+        <p>Run fast in-memory algorithmic analysis over recent logs to identify top blocked IP addresses and attack vectors.</p>
+    </div>
+    <button class="btn btn-primary" onclick="runTrafficAnalyzer()">
+        ⚡ Run C++ Analyzer
+    </button>
+</div>
+
+<div id="analyzer-results" class="card analyzer-results-card" style="display: none;">
+    <div class="card-header">
+        <h3>Threat Analytics Report</h3>
+        <span class="badge badge-info" id="analyzer-engine-tag">Engine</span>
+    </div>
+    <div class="analytics-content" id="analytics-summary"></div>
+</div>
+
+<!-- Two-Column Layout: Interfaces & Recent Events -->
+<div class="grid-2-col">
+    <!-- Network Interfaces Card -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Network Interface Statistics</h3>
+            <span class="card-hint">/proc/net/dev</span>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Interface</th>
+                        <th>Assigned IP</th>
+                        <th>Network Role</th>
+                        <th>RX Volume</th>
+                        <th>TX Volume</th>
+                    </tr>
+                </thead>
+                <tbody id="interface-table-body">
+                    {% for iface in interfaces %}
+                    <tr>
+                        <td><code>{{ iface.name }}</code></td>
+                        <td><code>{{ iface.ip }}</code></td>
+                        <td>
+                            {% if 'Internal' in iface.role %}
+                                <span class="badge badge-success">{{ iface.role }}</span>
+                            {% elif 'External' in iface.role %}
+                                <span class="badge badge-info">{{ iface.role }}</span>
+                            {% else %}
+                                <span class="badge badge-subtle">{{ iface.role }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ iface.human_rx }} ({{ iface.rx_packets }} pkts)</td>
+                        <td>{{ iface.human_tx }} ({{ iface.tx_packets }} pkts)</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Security Events Card -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Firewall Events</h3>
+            <a href="{{ url_for('logs_view') }}" class="link-action">View All Logs &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Source &rarr; Destination</th>
+                        <th>Proto</th>
+                        <th>Port</th>
+                        <th>Verdict</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td class="text-muted">{{ log.timestamp.split(' ')[1] if ' ' in log.timestamp else log.timestamp }}</td>
+                        <td>
+                            <code>{{ log.source_ip }}</code> &rarr; <code>{{ log.destination_ip }}</code>
+                        </td>
+                        <td><span class="badge badge-proto">{{ log.protocol|upper }}</span></td>
+                        <td>{{ log.destination_port or '-' }}</td>
+                        <td>
+                            {% if log.action|upper == 'ACCEPT' %}
+                                <span class="badge badge-success">ACCEPT</span>
+                            {% else %}
+                                <span class="badge badge-danger">DROP</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No security events logged yet. (Logs cleared)</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

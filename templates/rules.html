@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Rules - Stateful Network Firewall{% endblock %}
+{% block page_title %}Firewall Rule Management{% endblock %}
+{% block page_subtitle %}Ordered packet filtering policies compiled directly into the Linux nftables forward chain{% endblock %}
+
+{% block content %}
+<!-- Explanatory Banner -->
+<div class="card info-banner">
+    <div class="info-content">
+        <strong>⚠️ Rule Evaluation Order (First-Match Principle):</strong>
+        Rules are evaluated sequentially based on <strong>Priority (lowest number = highest precedence)</strong>.
+        When a packet matches a rule, the verdict (ACCEPT or DROP) is applied immediately and subsequent rules are skipped.
+        If no rules match, the packet falls through to the <strong>Default Deny</strong> policy.
+    </div>
+</div>
+
+<div class="rules-management-container">
+    <!-- Existing Rules Table -->
+    <div class="card full-width">
+        <div class="card-header">
+            <h3>Active Firewall Ruleset</h3>
+            <span class="badge badge-info">{{ rules|length }} Defined Rules</span>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table rules-table">
+                <thead>
+                    <tr>
+                        <th>Prio</th>
+                        <th>Rule Name</th>
+                        <th>Source</th>
+                        <th>Destination</th>
+                        <th>Proto</th>
+                        <th>Dest Port</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rules-table-body">
+                    {% for r in rules %}
+                    <tr id="rule-row-{{ r.id }}" class="{% if r.enabled == 0 %}rule-disabled{% endif %}">
+                        <td><strong>#{{ r.priority }}</strong></td>
+                        <td><strong>{{ r.name }}</strong></td>
+                        <td><code>{{ r.source }}</code></td>
+                        <td><code>{{ r.destination }}</code></td>
+                        <td><span class="badge badge-proto">{{ r.protocol|upper }}</span></td>
+                        <td><code>{{ r.destination_port }}</code></td>
+                        <td>
+                            {% if r.action|upper == 'ACCEPT' %}
+                                <span class="badge badge-success">ACCEPT</span>
+                            {% else %}
+                                <span class="badge badge-danger">DROP</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn-toggle {% if r.enabled == 1 %}toggle-on{% else %}toggle-off{% endif %}"
+                                    onclick="toggleRule({{ r.id }})" id="btn-toggle-{{ r.id }}"
+                                    title="Toggle rule enable/disable">
+                                {% if r.enabled == 1 %}ENABLED{% else %}DISABLED{% endif %}
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRule({{ r.id }}, '{{ r.name }}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">No rules defined. Click 'Add Rule' below.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add New Rule Card -->
+    <div class="card full-width" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h3>➕ Create New Firewall Rule</h3>
+            <span class="card-hint">Input will be sanitized & strictly validated</span>
+        </div>
+
+        <form id="add-rule-form" onsubmit="handleAddRule(event)" class="form-grid">
+            <div class="form-group col-span-2">
+                <label for="rule-name">Rule Description / Name *</label>
+                <input type="text" id="rule-name" name="name" placeholder="e.g. Block Client SSH Access" required>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-source">Source IP / CIDR *</label>
+                <input type="text" id="rule-source" name="source" value="any" placeholder="192.168.50.10 or any" required>
+                <small class="form-hint">IPv4 or 'any'</small>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-destination">Destination IP / CIDR *</label>
+                <input type="text" id="rule-destination" name="destination" value="any" placeholder="192.168.50.20 or any" required>
+                <small class="form-hint">IPv4 or 'any'</small>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-protocol">Protocol *</label>
+                <select id="rule-protocol" name="protocol" onchange="handleProtocolChange()">
+                    <option value="tcp">TCP</option>
+                    <option value="udp">UDP</option>
+                    <option value="icmp">ICMP (Ping)</option>
+                    <option value="all">ALL Protocols</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-dport">Destination Port</label>
+                <input type="text" id="rule-dport" name="destination_port" value="any" placeholder="e.g. 22 or 80 or any">
+                <small class="form-hint">1-65535 or 'any'</small>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-action">Verdict Action *</label>
+                <select id="rule-action" name="action">
+                    <option value="drop">DROP (Silently discard packet)</option>
+                    <option value="accept">ACCEPT (Permit packet forward)</option>
+                    <option value="reject">REJECT (Send ICMP unreachable)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-priority">Evaluation Priority (1-9999) *</label>
+                <input type="number" id="rule-priority" name="priority" value="100" min="1" max="9999" required>
+                <small class="form-hint">Lower number = evaluated earlier</small>
+            </div>
+
+            <div class="form-actions col-span-2">
+                <button type="submit" class="btn btn-primary">
+                    🛡️ Add & Apply Rule
+                </button>
+                <button type="reset" class="btn btn-secondary">
+                    Clear Form
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

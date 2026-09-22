@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Web Filter - Stateful Network Firewall{% endblock %}
+{% block page_title %}Website & Domain Access Control{% endblock %}
+{% block page_subtitle %}Live HTTP (80) & HTTPS (443) content filtering to allow or block specific websites on your browser{% endblock %}
+
+{% block content %}
+<!-- Privilege Status Banner for Host OS Filtering -->
+{% if is_windows and not is_admin %}
+<div class="card" style="background: rgba(245, 158, 11, 0.12); border-left: 4px solid var(--accent-amber); margin-bottom: 1.5rem;">
+    <div style="font-size: 13px; color: #fef3c7; line-height: 1.6;">
+        <strong style="color: var(--accent-amber); font-size: 14px;">⚠️ Windows Administrator Privileges Required for Local Browser Blocking</strong><br>
+        Python is currently running as a <strong>Standard User</strong> on Windows.
+        Windows security blocks standard programs from modifying system firewall rules (<code>netsh advfirewall</code>).<br>
+        <strong>To enforce website blocking directly on this PC's browser (Chrome/Edge):</strong>
+        <ol style="margin-left: 1.5rem; margin-top: 0.35rem;">
+            <li>Press <code>Ctrl + C</code> in your terminal to stop the server.</li>
+            <li>Right-click <strong>PowerShell</strong> or <strong>Command Prompt</strong> &rarr; Select <strong>"Run as administrator"</strong>.</li>
+            <li>Run: <code>cd C:\Users\HP\.gemini\antigravity\scratch\network-firewall && python app.py</code></li>
+        </ol>
+        <em>Note: Inside your Ubuntu VM lab, this is handled automatically with root privileges via <code>sudo bash setup_lab.sh</code>.</em>
+    </div>
+</div>
+{% elif is_admin %}
+<div class="card" style="background: rgba(16, 185, 129, 0.12); border-left: 4px solid var(--accent-emerald); margin-bottom: 1.5rem;">
+    <div style="font-size: 13px; color: #d1fae5;">
+        <strong style="color: var(--accent-emerald);">🛡️ Administrator Privileges Active:</strong>
+        Website blocks are applied directly to the host operating system firewall across <strong>TCP & UDP/QUIC (Ports 80 & 443)</strong>.
+    </div>
+</div>
+{% endif %}
+<!-- Live Browser Protection 1-Click Toggle Card -->
+{% if is_windows %}
+<div class="card full-width" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%); border-left: 4px solid var(--accent-cyan);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div style="max-width: 650px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--accent-cyan); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.25rem;">
+                LAYER 7 SECURE WEB GATEWAY (SWG) INTERCEPTION (ZERO ADMIN NEEDED)
+            </div>
+            <h3 style="font-size: 1.15rem; margin-bottom: 0.35rem; color: var(--text-primary);">
+                🖥️ 1-Click Live Browser Protection (Chrome / Edge / Firefox)
+            </h3>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                Click below to route your local browser traffic through the Net-Firewall Web Filter engine (<code>127.0.0.1:8080</code>).
+                When turned ON, any blocked website is <strong>instantly blocked in your actual browser with a 403 Forbidden security screen</strong>!
+            </p>
+        </div>
+        <div>
+            <button id="btn-proxy-toggle" class="btn {% if proxy_active %}btn-danger{% else %}btn-primary{% endif %}" onclick="toggleBrowserProxy()" style="font-size: 14px; padding: 0.75rem 1.4rem; font-weight: 700;">
+                {% if proxy_active %}
+                    🔴 Turn OFF Browser Protection
+                {% else %}
+                    🟢 Turn ON Browser Protection
+                {% endif %}
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Explanatory Banner -->
+<div class="card info-banner">
+    <div class="info-content">
+        <strong>🌐 How Real-World Web Filtering Works:</strong><br>
+        When you add a domain (e.g. <code>example.com</code>, <code>instagram.com</code>, or <code>linkedin.com</code>), the firewall intercepts traffic across <strong>Port 80 (HTTP) and Port 443 (HTTPS & QUIC)</strong>:
+        <ul style="margin-left: 1.5rem; margin-top: 0.35rem; margin-bottom: 0.35rem;">
+            <li><strong>HTTP Web Traffic (Port 80):</strong> Intercepted directly with the custom <strong>🛡️ ACCESS RESTRICTED - 403 Forbidden</strong> block screen.</li>
+            <li><strong>HTTPS Secure Traffic (Port 443):</strong> The TLS tunnel is rejected at the gateway (<code>HTTP/1.1 403 Forbidden / ERR_TUNNEL_CONNECTION_FAILED</code>), refusing the connection before any data is sent.</li>
+            <li><strong>QUIC (UDP 443) Bypass Defense:</strong> Automatically disabled via system policy when Browser Protection is ON, forcing Chrome/Edge through the filter.</li>
+        </ul>
+        Toggling any rule to <strong>DISABLED</strong> restores access immediately!
+    </div>
+</div>
+
+<div class="rules-management-container">
+    <!-- Active Domain Filters Table -->
+    <div class="card full-width">
+        <div class="card-header">
+            <div>
+                <h3>Active Website Filtering Policies</h3>
+                <span class="badge badge-info">{{ filters|length }} Domains Monitored</span>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-secondary" onclick="refreshAllWebFilters()" title="Re-query DNS for all domains">
+                    🔄 Re-Resolve All DNS
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Domain / Website</th>
+                        <th>Resolved IPv4 Addresses</th>
+                        <th>Policy</th>
+                        <th>Status</th>
+                        <th>Test in Browser</th>
+                        <th>Operations</th>
+                    </tr>
+                </thead>
+                <tbody id="webfilters-table-body">
+                    {% for f in filters %}
+                    <tr id="filter-row-{{ f.id }}" class="{% if f.enabled == 0 %}rule-disabled{% endif %}">
+                        <td>#{{ f.id }}</td>
+                        <td>
+                            <strong style="color: var(--accent-cyan); font-size: 14px;">{{ f.domain }}</strong>
+                        </td>
+                        <td id="ips-cell-{{ f.id }}">
+                            {% for ip in f.resolved_ips.split(',') %}
+                                <code>{{ ip.strip() }}</code>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if f.action|lower == 'block' %}
+                                <span class="badge badge-danger">BLOCKED</span>
+                            {% else %}
+                                <span class="badge badge-success">ALLOWED</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn-toggle {% if f.enabled == 1 %}toggle-on{% else %}toggle-off{% endif %}"
+                                    onclick="toggleWebFilter({{ f.id }})" id="btn-wf-toggle-{{ f.id }}"
+                                    title="Toggle domain block on/off">
+                                {% if f.enabled == 1 %}ENABLED{% else %}DISABLED{% endif %}
+                            </button>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                                <a href="http://{{ f.domain }}" target="_blank" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 3px 8px;" title="Test HTTP - Displays the 403 Access Restricted page">
+                                    🌐 Test HTTP Page
+                                </a>
+                                <a href="https://{{ f.domain }}" target="_blank" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 3px 8px;" title="Test HTTPS - Verifies gateway rejection (ERR_TUNNEL_CONNECTION_FAILED)">
+                                    🔒 Test HTTPS
+                                </a>
+                            </div>
+                        </td>
+                        <td style="display: flex; gap: 0.35rem; align-items: center;">
+                            <button class="btn btn-sm btn-secondary" onclick="refreshSingleWebFilter({{ f.id }})" title="Re-query DNS for new IPs">
+                                🔄 Refresh
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteWebFilter({{ f.id }}, '{{ f.domain }}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No websites currently blocked. Enter a domain below to test!</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Website to Block Form -->
+    <div class="card full-width" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h3>➕ Add Website to Block / Allow</h3>
+            <span class="card-hint">DNS resolution and firewall enforcement applied automatically</span>
+        </div>
+
+        <form id="add-webfilter-form" onsubmit="handleAddWebFilter(event)" class="form-grid">
+            <div class="form-group col-span-2">
+                <label for="filter-domain">Target Website / Domain *</label>
+                <input type="text" id="filter-domain" name="domain" placeholder="e.g. example.com, instagram.com, reddit.com" required>
+                <small class="form-hint">Enter domain name (protocol prefixes like http:// will be automatically stripped)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="filter-action">Policy Action *</label>
+                <select id="filter-action" name="action">
+                    <option value="block">🚫 BLOCK (Refuse HTTP & HTTPS connection)</option>
+                    <option value="allow">✓ ALLOW (Permit traffic explicitly)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Enforcement Mode</label>
+                <input type="text" value="Cross-Platform (Host OS + nftables)" disabled style="opacity: 0.7;">
+                <small class="form-hint">Blocks directly in your browser and across the routed lab network</small>
+            </div>
+
+            <div class="form-actions col-span-2">
+                <button type="submit" class="btn btn-danger" id="btn-submit-filter">
+                    🚫 Enforce Website Policy
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Handle Add Web Filter
+async function handleAddWebFilter(event) {
+    event.preventDefault();
+    const btn = document.getElementById('btn-submit-filter');
+    const form = event.target;
+    const formData = new FormData(form);
+    const domain = formData.get('domain');
+    const action = formData.get('action');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Resolving DNS & Applying Rule...';
+
+    try {
+        const res = await fetch('/api/webfilter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain: domain, action: action })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('🛡️ ' + data.message, 'success');
+            form.reset();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ Error: ' + (data.error || 'Failed to apply rule'), 'error');
+            btn.disabled = false;
+            btn.textContent = '🚫 Enforce Website Policy';
+        }
+    } catch (err) {
+        showToast('❌ Network error adding filter.', 'error');
+        btn.disabled = false;
+        btn.textContent = '🚫 Enforce Website Policy';
+    }
+}
+
+// Toggle Web Filter
+async function toggleWebFilter(filterId) {
+    try {
+        const res = await fetch(`/api/webfilter/${filterId}/toggle`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            const btn = document.getElementById(`btn-wf-toggle-${filterId}`);
+            const row = document.getElementById(`filter-row-${filterId}`);
+            if (data.enabled === 1) {
+                btn.className = 'btn-toggle toggle-on';
+                btn.textContent = 'ENABLED';
+                if (row) row.classList.remove('rule-disabled');
+                showToast(`Rule for ${data.domain} is now ENABLED (Blocked in browser).`, 'success');
+            } else {
+                btn.className = 'btn-toggle toggle-off';
+                btn.textContent = 'DISABLED';
+                if (row) row.classList.add('rule-disabled');
+                showToast(`Rule for ${data.domain} is now DISABLED (Allowed in browser).`, 'success');
+            }
+        } else {
+            showToast('❌ ' + data.error, 'error');
+        }
+    } catch (err) {
+        showToast('❌ Error toggling web filter.', 'error');
+    }
+}
+
+// Delete Web Filter
+async function deleteWebFilter(filterId, domain) {
+    if (!confirm(`Are you sure you want to remove the filter for "${domain}"? The website will be unblocked.`)) {
+        return;
+    }
+    try {
+        const res = await fetch(`/api/webfilter/${filterId}/delete`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`Domain "${domain}" unblocked and rule removed.`, 'success');
+            const row = document.getElementById(`filter-row-${filterId}`);
+            if (row) row.remove();
+        } else {
+            showToast('❌ ' + data.error, 'error');
+        }
+    } catch (err) {
+        showToast('❌ Error deleting web filter.', 'error');
+    }
+}
+
+// Re-Resolve Single Domain DNS
+async function refreshSingleWebFilter(filterId) {
+    showToast('⏳ Re-querying DNS resolution...', 'info');
+    try {
+        const res = await fetch(`/api/webfilter/${filterId}/refresh`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+            const cell = document.getElementById(`ips-cell-${filterId}`);
+            if (cell && data.resolved_ips) {
+                cell.innerHTML = data.resolved_ips.map(ip => `<code>${ip}</code>`).join(' ');
+            }
+        } else {
+            showToast(`❌ ${data.error}`, 'error');
+        }
+    } catch (err) {
+        showToast('❌ Network error refreshing DNS.', 'error');
+    }
+}
+
+// Re-Resolve All Domains DNS
+async function refreshAllWebFilters() {
+    showToast('⏳ Re-resolving all domains...', 'info');
+    try {
+        const res = await fetch('/api/webfilter/refresh-all', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showToast('❌ Failed to refresh domains.', 'error');
+        }
+    } catch (err) {
+        showToast('❌ Network error refreshing domains.', 'error');
+    }
+}
+async function toggleBrowserProxy() {
+    const btn = document.getElementById('btn-proxy-toggle');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ Updating Browser Settings...';
+    }
+    try {
+        const res = await fetch('/api/proxy/toggle', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 600);
+        } else {
+            showToast('❌ ' + (data.error || 'Failed to toggle proxy'), 'error');
+            if (btn) btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('❌ Network error toggling proxy. Ensure the server is running on http://127.0.0.1:5000', 'error');
+        if (btn) btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

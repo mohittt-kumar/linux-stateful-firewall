@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Stateful Network Firewall - Live Interactive Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #111827;
+            --bg-card: #1f2937;
+            --bg-card-hover: #283548;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --border-color: #374151;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', Consolas, monospace;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .banner-top {
+            background: linear-gradient(90deg, #1e1b4b, #311042);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+            padding: 0.5rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .banner-top a { color: #c084fc; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; }
+        .banner-top a:hover { text-decoration: underline; }
+        header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 700; color: #fff;
+        }
+        .logo-text h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+        .logo-text span { font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-mono); }
+        nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .nav-btn {
+            background: transparent; border: 1px solid transparent; color: var(--text-secondary);
+            padding: 0.45rem 0.9rem; border-radius: 6px; font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .nav-btn:hover { background-color: var(--bg-card); color: var(--text-primary); }
+        .nav-btn.active {
+            background-color: rgba(6, 182, 212, 0.15); border-color: var(--accent-cyan);
+            color: var(--accent-cyan); font-weight: 600;
+        }
+        main { flex: 1; padding: 1.5rem 2rem; max-width: 1440px; margin: 0 auto; width: 100%; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .card {
+            background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 1.25rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; }
+        .metric-value { font-size: 2rem; font-weight: 700; font-family: var(--font-mono); margin: 0.4rem 0; }
+        .badge {
+            display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px;
+            font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+        }
+        .badge-success { background-color: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid var(--accent-emerald); }
+        .badge-danger { background-color: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid var(--accent-rose); }
+        .badge-info { background-color: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+        .badge-warning { background-color: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th { background-color: rgba(0, 0, 0, 0.2); padding: 0.75rem 1rem; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border-color); }
+        td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+        tr:hover td { background-color: rgba(255, 255, 255, 0.02); }
+        code { font-family: var(--font-mono); color: var(--accent-cyan); background-color: rgba(6, 182, 212, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        
+        .btn {
+            background-color: var(--accent-cyan); color: #000; border: none; padding: 0.5rem 1rem;
+            border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-sm { padding: 0.3rem 0.65rem; font-size: 12px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
+        .btn-outline:hover { background-color: var(--bg-card); }
+        .btn-danger { background-color: var(--accent-rose); color: #fff; }
+        .btn-success { background-color: var(--accent-emerald); color: #fff; }
+        
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.35rem; }
+        .form-control {
+            width: 100%; background-color: var(--bg-primary); border: 1px solid var(--border-color);
+            color: var(--text-primary); padding: 0.55rem 0.75rem; border-radius: 6px; font-size: 13px;
+            font-family: inherit;
+        }
+        .form-control:focus { outline: none; border-color: var(--accent-cyan); }
+        .meter-bar { background-color: rgba(0, 0, 0, 0.4); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 0.35rem; }
+        .meter-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+        
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.85);
+            z-index: 100; align-items: center; justify-content: center; padding: 1.5rem;
+        }
+        .modal-overlay.open { display: flex; }
+        .block-card {
+            background-color: #111827; border: 1px solid #ef4444; border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.3); max-width: 520px; width: 100%;
+            padding: 2.25rem 2rem; text-align: center; position: relative;
+        }
+        .modal-close {
+            position: absolute; top: 1rem; right: 1rem; background: transparent; border: none;
+            color: #9ca3af; font-size: 1.25rem; cursor: pointer;
+        }
+        footer {
+            background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);
+            padding: 1rem 2rem; font-size: 12px; color: var(--text-secondary); text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="banner-top">
+        <div>
+            <span>🚀 <strong>Live GitHub Pages Demo</strong> — Production Linux Stateful Firewall & Web Filter Simulator</span>
+        </div>
+        <div>
+            <a href="https://github.com/mohittt-kumar/linux-stateful-firewall" target="_blank">
+                ⭐ View Source on GitHub &rarr;
+            </a>
+        </div>
+    </div>
+
+    <header>
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            <div class="logo-text">
+                <h1>Net-Firewall Console</h1>
+                <span>STATEFUL GATEWAY | NFTABLES & C++</span>
+            </div>
+        </div>
+        <nav>
+            <button class="nav-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+            <button class="nav-btn" onclick="switchTab('rules')">📋 Firewall Rules</button>
+            <button class="nav-btn" onclick="switchTab('webfilter')">🌐 Web Filter</button>
+            <button class="nav-btn" onclick="switchTab('conntrack')">⚡ Conntrack</button>
+            <button class="nav-btn" onclick="switchTab('logs')">📜 Audit Logs</button>
+            <button class="nav-btn" onclick="switchTab('analyzer')">🧠 C++ Analyzer</button>
+            <button class="nav-btn" onclick="switchTab('architecture')">🏛️ Lab Setup</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- TAB 1: DASHBOARD -->
+        <section id="tab-dashboard" class="tab-content active">
+            <div class="grid-4">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Gateway Status</span>
+                        <span class="badge badge-success">ACTIVE</span>
+                    </div>
+                    <div class="metric-value" style="color: var(--accent-emerald);">ONLINE</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Default Deny Forward Policy</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Allowed Packets</span>
+                        <span class="badge badge-info">TCP/UDP/ICMP</span>
+                    </div>
+                    <div class="metric-value" id="stat-allowed" style="color: var(--accent-cyan);">48,912</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Stateful Established / Related</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Blocked Packets</span>
+                        <span class="badge badge-danger">SECURITY DROPS</span>
+                    </div>
+                    <div class="metric-value" id="stat-blocked" style="color: var(--accent-rose);">1,409</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Invalid State & Policy Drops</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Active Connections</span>
+                        <span class="badge badge-warning">CONNTRACK</span>
+                    </div>
+                    <div class="metric-value" id="stat-conns" style="color: var(--accent-amber);">14</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Real-Time Tracked Flows</div>
+                </div>
+            </div>
+
+            <!-- Monitored Topology -->
+            <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%); border-left: 4px solid var(--accent-cyan);">
+                <div class="card-header">
+                    <span class="card-title">🌐 Active Monitored Network Topology</span>
+                    <span class="badge badge-success">0.0.0.0/0 UNIVERSAL</span>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                    Firewall operates in dynamic gateway mode inspecting all bidirectional traffic across external interface <code>ens33 (WAN)</code> and internal interface <code>ens38 (LAN)</code>. NAT Masquerading and universal state tracking are permanently active.
+                </p>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Network Interfaces Telemetry</span>
+                        <span class="badge badge-info">/proc/net/dev</span>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                            <span><strong>ens33 (WAN)</strong> &bull; External Network</span>
+                            <span style="font-family: var(--font-mono); color: var(--accent-cyan);" id="bw-ens33">142.4 KB/s</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill" style="width: 65%; background-color: var(--accent-cyan);"></div></div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                            <span><strong>ens38 (LAN)</strong> &bull; 192.168.50.1/24 Gateway</span>
+                            <span style="font-family: var(--font-mono); color: var(--accent-emerald);" id="bw-ens38">89.1 KB/s</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill" style="width: 45%; background-color: var(--accent-emerald);"></div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Live Security Event Stream</span>
+                        <button class="btn btn-sm btn-outline" onclick="switchTab('logs')">View All Logs &rarr;</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>Time</th><th>Source</th><th>Destination</th><th>Verdict</th></tr>
+                        </thead>
+                        <tbody id="recent-logs-body">
+                            <!-- dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: RULES -->
+        <section id="tab-rules" class="tab-content">
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <div>
+                        <h3>Firewall Rules Management</h3>
+                        <span style="font-size: 13px; color: var(--text-secondary);">Evaluated sequentially by Priority (Lowest number = Highest precedence)</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="document.getElementById('add-rule-card').scrollIntoView({behavior:'smooth'})">+ Create Rule</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Prio</th><th>Rule Name</th><th>Source</th><th>Destination</th><th>Proto</th><th>Port</th><th>Verdict</th><th>State</th><th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rules-table-body">
+                            <!-- dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" id="add-rule-card" style="max-width: 700px;">
+                <h4 style="margin-bottom: 1rem;">Add New Stateful Firewall Rule</h4>
+                <form id="form-add-rule" onsubmit="handleAddRule(event)">
+                    <div class="grid-2" style="margin-bottom: 0;">
+                        <div class="form-group">
+                            <label>Rule Name</label>
+                            <input type="text" id="rule-name" class="form-control" placeholder="e.g. Allow Secure Web" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Action (Verdict)</label>
+                            <select id="rule-action" class="form-control">
+                                <option value="accept">ACCEPT (Permit Traffic)</option>
+                                <option value="drop">DROP (Silent Discard)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid-2" style="margin-bottom: 0;">
+                        <div class="form-group">
+                            <label>Source IP / CIDR</label>
+                            <input type="text" id="rule-source" class="form-control" value="any" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Destination IP / CIDR</label>
+                            <input type="text" id="rule-destination" class="form-control" value="any" required>
+                        </div>
+                    </div>
+                    <div class="grid-2" style="margin-bottom: 0;">
+                        <div class="form-group">
+                            <label>Protocol</label>
+                            <select id="rule-proto" class="form-control">
+                                <option value="tcp">TCP</option>
+                                <option value="udp">UDP</option>
+                                <option value="icmp">ICMP (Ping)</option>
+                                <option value="all">ALL</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Destination Port</label>
+                            <input type="text" id="rule-port" class="form-control" placeholder="e.g. 443 or any" value="any">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Save Rule & Synchronize Kernel</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 3: WEB FILTER -->
+        <section id="tab-webfilter" class="tab-content">
+            <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%); border-left: 4px solid var(--accent-cyan);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 11px; text-transform: uppercase; color: var(--accent-cyan); font-weight: 700;">LAYER 7 SECURE WEB GATEWAY (SWG) INTERCEPTION</div>
+                        <h3 style="margin: 0.35rem 0;">🖥️ Live Browser Protection (Chrome / Edge / Firefox)</h3>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
+                            When enabled, domain block policies are enforced across all outgoing HTTP and HTTPS requests with zero elevation required.
+                        </p>
+                    </div>
+                    <button id="btn-swg-toggle" class="btn btn-danger" onclick="toggleSwg()">🔴 Turn OFF Browser Protection</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <div>
+                        <h3>Domain Access Control Policies</h3>
+                        <span style="font-size: 13px; color: var(--text-secondary);">Active DNS resolved domain filtering</span>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Domain / Website</th><th>Resolved Destination IPv4s</th><th>Policy</th><th>Status</th><th>Test in Browser</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="webfilter-table-body">
+                        <!-- dynamic -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card" style="max-width: 600px;">
+                <h4 style="margin-bottom: 1rem;">Add Domain to Block List</h4>
+                <form id="form-add-wf" onsubmit="handleAddWebFilter(event)">
+                    <div class="form-group">
+                        <label>Domain Name</label>
+                        <input type="text" id="wf-domain" class="form-control" placeholder="e.g. instagram.com or linkedin.com" required>
+                    </div>
+                    <button type="submit" class="btn btn-danger">+ Block Domain</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 4: CONNTRACK -->
+        <section id="tab-conntrack" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h3>Stateful Connection Tracking Table</h3>
+                        <span style="font-size: 13px; color: var(--text-secondary);">Parsed in real-time from <code>/proc/net/nf_conntrack</code></span>
+                    </div>
+                    <span class="badge badge-info" id="conntrack-count">14 Active Flows</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Protocol</th><th>Source IP</th><th>Source Port</th><th>Destination IP</th><th>Destination Port</th><th>Connection State</th></tr>
+                    </thead>
+                    <tbody id="conntrack-table-body">
+                        <!-- dynamic -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 5: LOGS -->
+        <section id="tab-logs" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h3>Firewall Security Audit Trail</h3>
+                        <span style="font-size: 13px; color: var(--text-secondary);">Kernel packet drops and proxy interception events</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="clearLogs()">🗑️ Clear Audit Trail</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Timestamp</th><th>Source IP</th><th>Destination</th><th>Proto</th><th>Port</th><th>Action</th><th>Reason</th></tr>
+                    </thead>
+                    <tbody id="all-logs-body">
+                        <!-- dynamic -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 6: ANALYZER -->
+        <section id="tab-analyzer" class="tab-content">
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <div>
+                        <h3>High-Performance C++ Threat Pattern Analyzer</h3>
+                        <span style="font-size: 13px; color: var(--text-secondary);">Native GCC 15 compiled engine analyzing log streams</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="runAnalyzer()">⚡ Re-Run C++ Analyzer</button>
+                </div>
+                <div class="grid-4">
+                    <div class="card" style="background-color: rgba(0,0,0,0.2);">
+                        <div style="font-size: 12px; color: var(--text-secondary);">Analyzed Events</div>
+                        <div class="metric-value" style="color: var(--accent-cyan);" id="analyzer-total">1,409</div>
+                    </div>
+                    <div class="card" style="background-color: rgba(0,0,0,0.2);">
+                        <div style="font-size: 12px; color: var(--text-secondary);">Top Blocked Protocol</div>
+                        <div class="metric-value" style="color: var(--accent-rose);">TCP</div>
+                    </div>
+                    <div class="card" style="background-color: rgba(0,0,0,0.2);">
+                        <div style="font-size: 12px; color: var(--text-secondary);">Top Blocked Port</div>
+                        <div class="metric-value" style="color: var(--accent-amber);">443</div>
+                    </div>
+                    <div class="card" style="background-color: rgba(0,0,0,0.2);">
+                        <div style="font-size: 12px; color: var(--text-secondary);">Engine Speed</div>
+                        <div class="metric-value" style="color: var(--accent-emerald);">0.003s</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 7: ARCHITECTURE & LAB -->
+        <section id="tab-architecture" class="tab-content">
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <h3 style="margin-bottom: 0.5rem;">🏛️ Enterprise 3-VM Linux Gateway Lab Setup</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                    This project is designed as an authentic Linux network security appliance built on top of the Linux kernel packet filtering framework (<code>nftables</code>). Below is the routed gateway topology:
+                </p>
+                <pre style="background-color: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; color: #a5f3fc; font-family: var(--font-mono); font-size: 12px; overflow-x: auto; margin: 1rem 0;">
+               INTERNET / HOST NETWORK (NAT)
+                         |
+                         | DHCP (e.g. ens33 / WAN)
+                 +---------------+
+                 |  FIREWALL VM  |
+                 |  Ubuntu Linux | &lt;-- Linux Kernel nftables + Conntrack + Python Web Console
+                 |  192.168.50.1 |
+                 +-------+-------+
+                         |
+      === ISOLATED VIRTUAL LAN SWITCH (192.168.50.0/24) ===
+                         |
+             +-----------+-----------+
+             |                       |
+     +-------+-------+       +-------+-------+
+     |   CLIENT VM   |       |   SERVER VM   |
+     | 192.168.50.10 |       | 192.168.50.20 |
+     | Gateway: .1   |       | Gateway: .1   |
+     +---------------+       +---------------+
+                </pre>
+                <h4 style="margin: 1rem 0 0.5rem;">Deployment on Real Ubuntu VM</h4>
+                <pre style="background-color: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; color: #a7f3d0; font-family: var(--font-mono); font-size: 12px; overflow-x: auto;">
+# Clone the repository
+git clone https://github.com/mohittt-kumar/linux-stateful-firewall.git
+cd linux-stateful-firewall
+
+# Run the automated laboratory deployment script
+sudo bash setup_lab.sh
+
+# Access web management console on http://&lt;firewall-ip&gt;:5000
+                </pre>
+            </div>
+        </section>
+    </main>
+
+    <!-- 403 Forbidden Block Screen Modal -->
+    <div class="modal-overlay" id="modal-403" onclick="if(event.target === this) closeModal()">
+        <div class="block-card">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div style="font-size: 3.5rem; margin-bottom: 0.75rem;">🛡️</div>
+            <h1 style="color: #ef4444; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">ACCESS RESTRICTED</h1>
+            <p style="color: #9ca3af; font-size: 14px; line-height: 1.6; margin-bottom: 1rem;">
+                Access to <code id="modal-domain">example.com</code> has been blocked by your <strong>Linux Stateful Network Firewall Policy</strong>.
+            </p>
+            <div style="background-color: rgba(0, 0, 0, 0.4); border: 1px solid #374151; border-radius: 8px; padding: 0.85rem; text-align: left; font-size: 12px; color: #d1d5db; margin-bottom: 1rem;">
+                <div><strong>Blocked Domain:</strong> <span id="modal-domain-txt">example.com</span></div>
+                <div><strong>Interception Engine:</strong> Net-Firewall Web Filter (Layer 7 SWG)</div>
+                <div><strong>Verdict:</strong> 403 Forbidden (DROP Policy Enforced)</div>
+                <div><strong>Enforcement:</strong> Port 80 HTTP / Port 443 HTTPS Tunnel Discard</div>
+            </div>
+            <button class="btn btn-outline" onclick="closeModal()">Close Preview</button>
+        </div>
+    </div>
+
+    <footer>
+        Linux-Based Stateful Network Firewall with Web-Based Monitoring and Rule Management &bull; Developed by <a href="https://github.com/mohittt-kumar" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">Mohit Kumar</a>
+    </footer>
+
+    <script>
+        const defaultRules = [
+            { id: 1, prio: 10, name: 'Allow Management SSH', src: 'any', dst: 'any', proto: 'tcp', port: '22', action: 'accept', enabled: 1 },
+            { id: 2, prio: 20, name: 'Allow Management Web UI', src: 'any', dst: 'any', proto: 'tcp', port: '5000', action: 'accept', enabled: 1 },
+            { id: 3, prio: 30, name: 'Allow Universal DNS Queries', src: 'any', dst: 'any', proto: 'udp', port: '53', action: 'accept', enabled: 1 },
+            { id: 4, prio: 40, name: 'Allow Universal HTTP Web', src: 'any', dst: 'any', proto: 'tcp', port: '80', action: 'accept', enabled: 1 },
+            { id: 5, prio: 50, name: 'Allow Universal HTTPS Web', src: 'any', dst: 'any', proto: 'tcp', port: '443', action: 'accept', enabled: 1 },
+            { id: 6, prio: 60, name: 'Allow Universal ICMP Ping', src: 'any', dst: 'any', proto: 'icmp', port: 'any', action: 'accept', enabled: 1 }
+        ];
+
+        let rules = JSON.parse(localStorage.getItem('netfw_rules')) || defaultRules;
+        let webfilters = JSON.parse(localStorage.getItem('netfw_webfilters')) || [];
+
+        let logs = JSON.parse(localStorage.getItem('netfw_logs')) || [
+            { time: '13:30:12', src: '192.168.50.10', dst: 'ums.lpu.in', proto: 'TCP', port: '443', verdict: 'DROP', reason: 'Web Filter: Blocked ums.lpu.in' },
+            { time: '13:29:45', src: '192.168.50.10', dst: 'instagram.com', proto: 'TCP', port: '443', verdict: 'DROP', reason: 'Web Filter: Blocked instagram.com' },
+            { time: '13:28:10', src: '192.168.50.10', dst: '8.8.8.8', proto: 'UDP', port: '53', verdict: 'ACCEPT', reason: 'Universal DNS Allowed' },
+            { time: '13:27:02', src: '192.168.50.10', dst: 'github.com', proto: 'TCP', port: '443', verdict: 'ACCEPT', reason: 'Universal HTTPS Allowed' },
+            { time: '13:25:19', src: '10.0.0.99', dst: '192.168.50.1', proto: 'TCP', port: '23', verdict: 'DROP', reason: 'Blocked Insecure Telnet' }
+        ];
+
+        let swgActive = true;
+
+        function saveState() {
+            localStorage.setItem('netfw_rules', JSON.stringify(rules));
+            localStorage.setItem('netfw_webfilters', JSON.stringify(webfilters));
+            localStorage.setItem('netfw_logs', JSON.stringify(logs));
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.innerText.toLowerCase().includes(tabId.substring(0,4)));
+            if (btn) btn.classList.add('active');
+            
+            const tab = document.getElementById('tab-' + tabId);
+            if (tab) tab.classList.add('active');
+        }
+
+        function renderRules() {
+            const tbody = document.getElementById('rules-table-body');
+            tbody.innerHTML = rules.map(r => `
+                <tr style="${r.enabled ? '' : 'opacity: 0.5;'}">
+                    <td><code>#${r.prio}</code></td>
+                    <td><strong>${r.name}</strong></td>
+                    <td><code>${r.src}</code></td>
+                    <td><code>${r.dst}</code></td>
+                    <td><code>${r.proto.toUpperCase()}</code></td>
+                    <td><code>${r.port}</code></td>
+                    <td><span class="badge ${r.action === 'accept' ? 'badge-success' : 'badge-danger'}">${r.action.toUpperCase()}</span></td>
+                    <td>
+                        <button class="btn btn-sm ${r.enabled ? 'btn-success' : 'btn-outline'}" onclick="toggleRule(${r.id})">
+                            ${r.enabled ? 'ENABLED' : 'DISABLED'}
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRule(${r.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function toggleRule(id) {
+            rules = rules.map(r => r.id === id ? { ...r, enabled: r.enabled ? 0 : 1 } : r);
+            saveState();
+            renderRules();
+        }
+
+        function deleteRule(id) {
+            rules = rules.filter(r => r.id !== id);
+            saveState();
+            renderRules();
+        }
+
+        function handleAddRule(e) {
+            e.preventDefault();
+            const name = document.getElementById('rule-name').value.trim();
+            const action = document.getElementById('rule-action').value;
+            const src = document.getElementById('rule-source').value.trim();
+            const dst = document.getElementById('rule-destination').value.trim();
+            const proto = document.getElementById('rule-proto').value;
+            const port = document.getElementById('rule-port').value.trim();
+
+            const newRule = {
+                id: Date.now(),
+                prio: rules.length ? Math.max(...rules.map(r => r.prio)) + 10 : 10,
+                name, src, dst, proto, port, action, enabled: 1
+            };
+            rules.push(newRule);
+            saveState();
+            renderRules();
+            alert('Rule added and synchronized to kernel!');
+            e.target.reset();
+        }
+
+        function renderWebFilters() {
+            const tbody = document.getElementById('webfilter-table-body');
+            if (!webfilters.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 1.5rem;">No websites currently blocked. Enter a domain below to add!</td></tr>';
+                return;
+            }
+            tbody.innerHTML = webfilters.map(f => `
+                <tr style="${f.enabled ? '' : 'opacity: 0.5;'}">
+                    <td><strong style="color: var(--accent-cyan);">${f.domain}</strong></td>
+                    <td>${f.ips.map(ip => `<code>${ip}</code>`).join(' ')}</td>
+                    <td><span class="badge ${f.action === 'block' ? 'badge-danger' : 'badge-success'}">${f.action.toUpperCase()}</span></td>
+                    <td>
+                        <button class="btn btn-sm ${f.enabled ? 'btn-success' : 'btn-outline'}" onclick="toggleWf(${f.id})">
+                            ${f.enabled ? 'ENABLED' : 'DISABLED'}
+                        </button>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:0.25rem;">
+                            <button class="btn btn-sm btn-outline" onclick="showBlockModal('${f.domain}')">🌐 Test HTTP</button>
+                            <button class="btn btn-sm btn-outline" onclick="testHttps('${f.domain}')">🔒 Test HTTPS</button>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteWf(${f.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function toggleWf(id) {
+            webfilters = webfilters.map(f => f.id === id ? { ...f, enabled: f.enabled ? 0 : 1 } : f);
+            saveState();
+            renderWebFilters();
+        }
+
+        function deleteWf(id) {
+            webfilters = webfilters.filter(f => f.id !== id);
+            saveState();
+            renderWebFilters();
+        }
+
+        function handleAddWebFilter(e) {
+            e.preventDefault();
+            const domain = document.getElementById('wf-domain').value.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+            const newFilter = {
+                id: Date.now(),
+                domain,
+                ips: ['104.20.10.1', '172.67.20.2'],
+                action: 'block',
+                enabled: 1
+            };
+            webfilters.push(newFilter);
+            saveState();
+            renderWebFilters();
+            alert('Blocked domain ' + domain + ' across TCP/UDP ports 80 & 443!');
+            e.target.reset();
+        }
+
+        function toggleSwg() {
+            swgActive = !swgActive;
+            const btn = document.getElementById('btn-swg-toggle');
+            if (swgActive) {
+                btn.className = 'btn btn-danger';
+                btn.innerText = '🔴 Turn OFF Browser Protection';
+            } else {
+                btn.className = 'btn btn-success';
+                btn.innerText = '🟢 Turn ON Browser Protection';
+            }
+        }
+
+        function showBlockModal(domain) {
+            document.getElementById('modal-domain').innerText = domain;
+            document.getElementById('modal-domain-txt').innerText = domain;
+            document.getElementById('modal-403').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-403').classList.remove('open');
+        }
+
+        function testHttps(domain) {
+            alert('GATEWAY VERDICT: Connection refused (403 Forbidden / ERR_TUNNEL_CONNECTION_FAILED). Encrypted tunnel to ' + domain + ':443 rejected at the gateway.');
+        }
+
+        function renderLogs() {
+            const tbodyRecent = document.getElementById('recent-logs-body');
+            const tbodyAll = document.getElementById('all-logs-body');
+
+            tbodyRecent.innerHTML = logs.slice(0, 5).map(l => `
+                <tr>
+                    <td><code>${l.time}</code></td>
+                    <td><code>${l.src}</code></td>
+                    <td><strong>${l.dst}</strong></td>
+                    <td><span class="badge ${l.verdict === 'ACCEPT' ? 'badge-success' : 'badge-danger'}">${l.verdict}</span></td>
+                </tr>
+            `).join('');
+
+            tbodyAll.innerHTML = logs.map(l => `
+                <tr>
+                    <td><code>${l.time}</code></td>
+                    <td><code>${l.src}</code></td>
+                    <td><strong>${l.dst}</strong></td>
+                    <td><code>${l.proto}</code></td>
+                    <td><code>${l.port}</code></td>
+                    <td><span class="badge ${l.verdict === 'ACCEPT' ? 'badge-success' : 'badge-danger'}">${l.verdict}</span></td>
+                    <td>${l.reason}</td>
+                </tr>
+            `).join('');
+        }
+
+        function clearLogs() {
+            logs = [];
+            saveState();
+            renderLogs();
+        }
+
+        function renderConntrack() {
+            const flows = [
+                { proto: 'TCP', src: '192.168.50.10', sport: '52194', dst: '142.250.190.46', dport: '443', state: 'ESTABLISHED' },
+                { proto: 'TCP', src: '192.168.50.10', sport: '52198', dst: '142.250.190.46', dport: '443', state: 'ESTABLISHED' },
+                { proto: 'TCP', src: '192.168.50.20', sport: '49120', dst: '192.168.50.1', dport: '22', state: 'ESTABLISHED' },
+                { proto: 'UDP', src: '192.168.50.10', sport: '53190', dst: '8.8.8.8', dport: '53', state: 'UNREPLIED' },
+                { proto: 'TCP', src: '192.168.50.10', sport: '51204', dst: '157.240.22.35', dport: '443', state: 'TIME_WAIT' }
+            ];
+            document.getElementById('conntrack-table-body').innerHTML = flows.map(f => `
+                <tr>
+                    <td><code>${f.proto}</code></td>
+                    <td><code>${f.src}</code></td>
+                    <td><code>${f.sport}</code></td>
+                    <td><code>${f.dst}</code></td>
+                    <td><code>${f.dport}</code></td>
+                    <td><span class="badge badge-success">${f.state}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function runAnalyzer() {
+            alert('C++ Threat Pattern Analyzer completed in 0.003s! Analyzed all security events across TCP/UDP.');
+        }
+
+        // Live stats ticker
+        let allowed = 48912;
+        setInterval(() => {
+            allowed += Math.floor(Math.random() * 4);
+            document.getElementById('stat-allowed').innerText = allowed.toLocaleString();
+            document.getElementById('bw-ens33').innerText = (130 + Math.random() * 25).toFixed(1) + ' KB/s';
+            document.getElementById('bw-ens38').innerText = (80 + Math.random() * 15).toFixed(1) + ' KB/s';
+        }, 2000);
+
+        renderRules();
+        renderWebFilters();
+        renderLogs();
+        renderConntrack();
+    </script>
+</body>
+</html>

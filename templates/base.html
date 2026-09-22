@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Linux Stateful Network Firewall{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">🛡️</div>
+                <div class="brand-text">
+                    <h2>NET-FIREWALL</h2>
+                    <span class="brand-sub">nftables • stateful</span>
+                </div>
+            </div>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard_view') }}" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a>
+                <a href="{{ url_for('rules_view') }}" class="nav-item {% if active_page == 'rules' %}active{% endif %}">
+                    <span class="nav-icon">⚙️</span> Firewall Rules
+                </a>
+                <a href="{{ url_for('webfilter_view') }}" class="nav-item {% if active_page == 'webfilter' %}active{% endif %}">
+                    <span class="nav-icon">🌐</span> Web Filter
+                </a>
+                <a href="{{ url_for('connections_view') }}" class="nav-item {% if active_page == 'connections' %}active{% endif %}">
+                    <span class="nav-icon">🔗</span> Connections
+                </a>
+                <a href="{{ url_for('logs_view') }}" class="nav-item {% if active_page == 'logs' %}active{% endif %}">
+                    <span class="nav-icon">📜</span> Audit Logs
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-status-indicator">
+                    <span class="status-dot online"></span>
+                    <div>
+                        <div class="status-label">System Engine</div>
+                        <div class="status-val" id="engine-status">Active</div>
+                    </div>
+                </div>
+                <div class="policy-badge">Default Forward: <strong>DROP</strong></div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title">
+                    <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p class="page-subtitle">{% block page_subtitle %}Real-time packet inspection & telemetry{% endblock %}</p>
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn btn-secondary" onclick="syncFirewallRules()" title="Synchronize SQLite rules directly to nftables">
+                        🔄 Sync Ruleset
+                    </button>
+                    <a href="/api/firewall/export" target="_blank" class="btn btn-outline" title="View raw nftables configuration">
+                        📄 Export nftables.conf
+                    </a>
+                </div>
+            </header>
+
+            <!-- Notification Toast Area -->
+            <div id="toast-container" class="toast-container"></div>
+
+            <div class="page-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
