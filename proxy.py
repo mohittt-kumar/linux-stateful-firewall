@@ -141,7 +141,8 @@ def render_block_screen(domain: str, port: int = 80) -> bytes:
 def is_domain_blocked(domain: str) -> bool:
     """
     Checks if a domain or its apex/parent domain is marked as blocked in SQLite.
-    Example: 'www.instagram.com' matches 'instagram.com' or 'www.instagram.com'.
+    Handles subdomains, www-aliases, and apex domains seamlessly:
+    e.g. 'www.youtube.com' and 'm.youtube.com' match 'youtube.com'.
     """
     from database import get_web_filters
     clean_domain = domain.lower().strip().split(":")[0]
@@ -150,14 +151,18 @@ def is_domain_blocked(domain: str) -> bool:
     for f in filters:
         if f.get("enabled") == 1 and f.get("action", "").lower() == "block":
             target = f.get("domain", "").lower().strip()
-            # Direct match
-            if clean_domain == target:
+            # Normalize target: strip www. to get apex
+            target_apex = target[4:] if target.startswith("www.") else target
+            clean_apex = clean_domain[4:] if clean_domain.startswith("www.") else clean_domain
+
+            # Direct match or apex match
+            if clean_domain == target or clean_apex == target_apex:
                 return True
-            # Subdomain match (e.g. www.instagram.com matching instagram.com)
-            if clean_domain.endswith("." + target):
+            # Subdomain match: e.g. 'm.youtube.com' or 'px.ads.linkedin.com' ends with '.youtube.com'
+            if clean_domain.endswith("." + target_apex) or clean_domain.endswith("." + target):
                 return True
-            # Apex match if target had www.
-            if target.startswith("www.") and clean_domain == target[4:]:
+            # In reverse: if target had subdomain and clean_domain is target
+            if target.endswith("." + clean_apex):
                 return True
 
     return False
@@ -211,28 +216,25 @@ def handle_client_connection(client_sock: socket.socket, client_addr: Tuple[str,
                 logger.info(f"🚫 [BLOCKED HTTPS]: {host}:{port} for client {client_ip}")
                 log_web_filter_drop(host, port, client_ip)
 
-                # Return Cyber 403 Forbidden response with graceful shutdown to prevent direct fallback
-                body = render_block_screen(host, port)
-                resp = (
-                    b"HTTP/1.1 403 Forbidden\r\n"
-                    b"Server: Net-Firewall-SWG\r\n"
-                    b"Content-Type: text/html; charset=utf-8\r\n"
-                    b"Proxy-Connection: close\r\n"
-                    b"Connection: close\r\n"
-                    b"Alt-Svc: clear\r\n"
-                    b"Content-Length: " + str(len(body)).encode("utf-8") + b"\r\n\r\n" + body
-                )
+                # Send 200 Connection Established so the browser believes proxy tunnel opened successfully
+                # Then receive TLS ClientHello and return TLS Fatal Alert: access_denied
+                # This guarantees Chrome / Edge will NOT fall back to direct connection!
                 try:
-                    client_sock.sendall(resp)
-                    client_sock.shutdown(socket.SHUT_WR)
-                    client_sock.settimeout(0.5)
+                    client_sock.sendall(b"HTTP/1.1 200 Connection Established\r\nProxy-Agent: Net-Firewall-SWG\r\n\r\n")
+                    client_sock.settimeout(1.5)
                     try:
-                        client_sock.recv(1024)
+                        client_sock.recv(4096)  # consume TLS ClientHello
                     except Exception:
                         pass
+                    # TLS 1.2 / 1.3 Fatal Alert: access_denied (RFC 5246 code 49 = 0x31)
+                    client_sock.sendall(b"\x15\x03\x03\x00\x02\x02\x31")
                 except Exception:
                     pass
-                client_sock.close()
+                finally:
+                    try:
+                        client_sock.close()
+                    except Exception:
+                        pass
                 return
 
             # Allowed: Connect to remote host and establish bidirectional tunnel
