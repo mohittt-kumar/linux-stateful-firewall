@@ -202,11 +202,16 @@ def api_add_webfilter():
     rules = get_all_rules(order_by_priority=True)
     apply_ruleset(rules)
 
+    # Auto-engage Windows Browser Proxy when a block filter is added
+    if os.name == "nt" and action == "block":
+        set_windows_browser_proxy(True)
+
     return jsonify({
         "success": True,
         "filter_id": filter_id,
         "domain": domain,
         "resolved_ips": ips,
+        "proxy_active": get_windows_browser_proxy_status() if os.name == "nt" else False,
         "message": f"Successfully blocked {domain} on Ports 80/443 (IPs: {ips_str}). {msg}"
     })
 
@@ -226,10 +231,20 @@ def api_toggle_webfilter(filter_id: int):
     rules = get_all_rules(order_by_priority=True)
     apply_ruleset(rules)
 
+    # Auto-sync Windows Browser Proxy: Turn off if no active block filters remain
+    if os.name == "nt":
+        all_filters = get_web_filters()
+        has_active_blocks = any(item["enabled"] == 1 and item["action"] == "block" for item in all_filters)
+        if has_active_blocks and not get_windows_browser_proxy_status():
+            set_windows_browser_proxy(True)
+        elif not has_active_blocks and get_windows_browser_proxy_status():
+            set_windows_browser_proxy(False)
+
     return jsonify({
         "success": True,
         "enabled": new_status,
         "domain": domain,
+        "proxy_active": get_windows_browser_proxy_status() if os.name == "nt" else False,
         "message": f"Filter for '{domain}' is now {'Active (Blocked)' if new_status == 1 else 'Disabled (Allowed)'}."
     })
 
@@ -247,8 +262,16 @@ def api_delete_webfilter(filter_id: int):
     rules = get_all_rules(order_by_priority=True)
     apply_ruleset(rules)
 
+    # Auto-sync Windows Browser Proxy: Turn off if no active block filters remain
+    if os.name == "nt":
+        all_filters = get_web_filters()
+        has_active_blocks = any(item["enabled"] == 1 and item["action"] == "block" for item in all_filters)
+        if not has_active_blocks and get_windows_browser_proxy_status():
+            set_windows_browser_proxy(False)
+
     return jsonify({
         "success": True,
+        "proxy_active": get_windows_browser_proxy_status() if os.name == "nt" else False,
         "message": f"Filter for '{domain}' deleted and unblocked."
     })
 

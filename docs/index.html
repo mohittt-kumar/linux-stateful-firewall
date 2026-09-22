@@ -152,11 +152,11 @@
 <body>
     <div class="banner-top">
         <div>
-            <span>🚀 <strong>Live GitHub Pages Demo</strong> — Production Linux Stateful Firewall & Web Filter Simulator</span>
+            <span>🚀 <strong>Live GitHub Pages Demo</strong> &bull; Interactive Console & Policy Simulator &bull; To block websites on your PC/Gateway, run locally at <code style="background: rgba(255,255,255,0.2); color:#fff;">http://localhost:5000</code></span>
         </div>
         <div>
             <a href="https://github.com/mohittt-kumar/linux-stateful-firewall" target="_blank">
-                ⭐ View Source on GitHub &rarr;
+                ⭐ GitHub Repo &rarr;
             </a>
         </div>
     </div>
@@ -344,12 +344,13 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <div style="font-size: 11px; text-transform: uppercase; color: var(--accent-cyan); font-weight: 700;">LAYER 7 SECURE WEB GATEWAY (SWG) INTERCEPTION</div>
-                        <h3 style="margin: 0.35rem 0;">🖥️ Live Browser Protection (Chrome / Edge / Firefox)</h3>
+                        <h3 style="margin: 0.35rem 0;">🖥️ Live Browser Protection Simulator</h3>
                         <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
-                            When enabled, domain block policies are enforced across all outgoing HTTP and HTTPS requests with zero elevation required.
+                            <strong>Interactive Simulation:</strong> Add domains below and click <em>"🌐 Test HTTP"</em> to test the 403 Access Restricted screen.
+                            <br><span style="color: var(--accent-cyan);">💡 Real-World Note:</span> To actively enforce website blocks in your real PC browser, run the Python firewall on your machine (<a href="http://localhost:5000/webfilter" target="_blank" style="color: var(--accent-cyan);">http://localhost:5000/webfilter</a>).
                         </p>
                     </div>
-                    <button id="btn-swg-toggle" class="btn btn-danger" onclick="toggleSwg()">🔴 Turn OFF Browser Protection</button>
+                    <button id="btn-swg-toggle" class="btn btn-danger" onclick="toggleSwg()">🔴 Turn OFF Browser Protection (Simulator)</button>
                 </div>
             </div>
 

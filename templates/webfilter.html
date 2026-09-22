@@ -7,25 +7,18 @@
 {% block content %}
 <!-- Privilege Status Banner for Host OS Filtering -->
 {% if is_windows and not is_admin %}
-<div class="card" style="background: rgba(245, 158, 11, 0.12); border-left: 4px solid var(--accent-amber); margin-bottom: 1.5rem;">
-    <div style="font-size: 13px; color: #fef3c7; line-height: 1.6;">
-        <strong style="color: var(--accent-amber); font-size: 14px;">⚠️ Windows Administrator Privileges Required for Local Browser Blocking</strong><br>
-        Python is currently running as a <strong>Standard User</strong> on Windows.
-        Windows security blocks standard programs from modifying system firewall rules (<code>netsh advfirewall</code>).<br>
-        <strong>To enforce website blocking directly on this PC's browser (Chrome/Edge):</strong>
-        <ol style="margin-left: 1.5rem; margin-top: 0.35rem;">
-            <li>Press <code>Ctrl + C</code> in your terminal to stop the server.</li>
-            <li>Right-click <strong>PowerShell</strong> or <strong>Command Prompt</strong> &rarr; Select <strong>"Run as administrator"</strong>.</li>
-            <li>Run: <code>cd C:\Users\HP\.gemini\antigravity\scratch\network-firewall && python app.py</code></li>
-        </ol>
-        <em>Note: Inside your Ubuntu VM lab, this is handled automatically with root privileges via <code>sudo bash setup_lab.sh</code>.</em>
+<div class="card" style="background: rgba(6, 182, 212, 0.08); border-left: 4px solid var(--accent-cyan); margin-bottom: 1.5rem;">
+    <div style="font-size: 13px; color: var(--text-primary); line-height: 1.6;">
+        <strong style="color: var(--accent-cyan); font-size: 14px;">⚡ Zero-Admin Browser Protection Active:</strong>
+        Website blocking works out-of-the-box in Chrome, Edge, and Firefox via the built-in Layer 7 Secure Web Gateway proxy.
+        <em>(Optional: To additionally enforce kernel packet drops via <code>netsh advfirewall</code>, you can launch using <code>start_firewall_as_admin.bat</code>).</em>
     </div>
 </div>
 {% elif is_admin %}
 <div class="card" style="background: rgba(16, 185, 129, 0.12); border-left: 4px solid var(--accent-emerald); margin-bottom: 1.5rem;">
     <div style="font-size: 13px; color: #d1fae5;">
         <strong style="color: var(--accent-emerald);">🛡️ Administrator Privileges Active:</strong>
-        Website blocks are applied directly to the host operating system firewall across <strong>TCP & UDP/QUIC (Ports 80 & 443)</strong>.
+        Dual enforcement engaged: Layer 7 Proxy + Kernel Host Firewall rules (<code>netsh advfirewall</code>).
     </div>
 </div>
 {% endif %}
